@@ -1,0 +1,121 @@
+import cv2
+import numpy as np
+import face_recognition
+import pyodbc
+
+# Veritabanı bağlantısı
+conn = pyodbc.connect('Driver={SQL Server};'
+                      'Server=DESKTOP-K00MFPG\SQLEXPRESS;'
+                      'Database=KAFE;'
+                      'Trusted_Connection=yes;')
+cursor = conn.cursor()
+# Veritabanına müşteri kaydetme
+
+global musteriler
+isim = input("isminiz")
+soyisim = input("soyisminiz")
+icecek_isim = input("iceceğiniz")
+
+# Web kamerasını açma:
+video_capture = cv2.VideoCapture(0)
+
+# Örnek ilk resmi ekleme ve yüzü şifreleme:
+sevval_image = face_recognition.load_image_file("sevval.jpeg")
+sevval_face_encoding = face_recognition.face_encodings(sevval_image)[0]
+
+# Örnek ikinci resmi ekleme ve yüzü şifreleme:
+berra_image = face_recognition.load_image_file("berra.jpeg")
+berra_face_encoding = face_recognition.face_encodings(berra_image)[0]
+
+# Örnek üçüncü resmi ekleme ve yüzü şifreleme:
+bilun_image = face_recognition.load_image_file("bilun.jpeg")
+bilun_face_encoding = face_recognition.face_encodings(bilun_image)[0]
+
+hello_image = face_recognition.load_image_file("hello.png")
+hello_face_encoding = face_recognition.face_encodings(hello_image)[0]
+
+# Bilinen yüz kodlamalarının ve adlarının dizilerini oluşturma:
+known_face_encodings = [
+    sevval_face_encoding,
+    berra_face_encoding,
+    bilun_face_encoding,
+    hello_face_encoding
+]
+known_face_names = [
+    "Sevval Ozdaban",
+    "Berra Oz",
+    "Bilun Kocaaslan",
+    isim, soyisim
+]
+
+# Bazı değişkenleri tanımlama:
+face_locations = []
+face_encodings = []
+face_names = []
+process_this_frame = True
+
+while True:
+    # Tek bir video karesi yakalama:
+    ret, frame = video_capture.read()
+    cv2.imwrite('hello.png', frame)
+    if cv2.waitKey(30) & 0xFF == ord('q'):
+        break
+    # Daha hızlı yüz tanıma işlemi için video karesini 1/4 boyuta yeniden boyutlandırma:
+    small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+
+    # Görüntüyü BGR renginden RGB rengine dönüştürme:
+    rgb_small_frame = small_frame[:, :, ::-1]
+
+    # Zaman kazanmak için videonun sadece yüzün olduğu yerleri işleme:
+    if process_this_frame:
+        # Videonun geçerli çerçevesinde tüm yüzleri ve yüz şifrelemelerini bulma:
+        face_locations = face_recognition.face_locations(rgb_small_frame)
+        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+
+        face_names = []
+        for face_encoding in face_encodings:
+            # Yüzün bilinen yüzlerle eşleşip eşleşmediğine bakma:
+            matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+            name = "Unknown"
+
+            # # Eğer yüz known_face_encodings içinde kayıtlıysa, ilk olanı kullanma:.
+            if True in matches:
+                first_match_index = matches.index(True)
+                name = known_face_names[first_match_index]
+
+            # Veya bunun yerine, bilinen yüzü yeni yüze en kısa mesafede kullanma:
+            face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
+            best_match_index = np.argmin(face_distances)
+            if matches[best_match_index]:
+                name = known_face_names[best_match_index]
+
+            face_names.append(name)
+
+    process_this_frame = not process_this_frame
+
+    # Sonuçları göster
+    for (top, right, bottom, left), name in zip(face_locations, face_names):
+        # Tespit ettiğimiz kare 1/4 boyuta ölçeklendiği için yüz konumlarını ölçeklendirme:
+        top *= 4
+        right *= 4
+        bottom *= 4
+        left *= 4
+
+        # Yüzün etrafına bir kutu çizin
+        cv2.rectangle(frame, (left, top), (right, bottom), (0, 0, 255), 2)
+
+        # Yüzün altında bir isme sahip bir etiket çizdirme:
+        cv2.rectangle(frame, (left, bottom - 35), (right, bottom), (0, 0, 255), cv2.FILLED)
+        font = cv2.FONT_HERSHEY_DUPLEX
+        cv2.putText(frame, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)
+
+    # Ortaya çıkan görüntüyü gösterme:
+    cv2.imshow('Video', frame)
+
+    # Çıkmak için klavyede 'q' tuşuna basın!
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+# Web kamerasını serbest bırakma:
+video_capture.release()
+cv2.destroyAllWindows()
