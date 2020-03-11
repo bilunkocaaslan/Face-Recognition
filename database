@@ -1,0 +1,27 @@
+import pyodbc
+
+conn = pyodbc.connect('Driver={SQL Server};'
+                      'Server=MSI\SQLEXPRESS;'
+                      'Database=KAFE;'
+                      'Trusted_Connection=yes;')
+cursor = conn.cursor()
+
+global musteri
+isim = input("İsminiz:")
+soyisim = input("Soyisminiz:")
+icecek_isim = input("İceceğiniz:")
+
+if('SELECT isim from musteriler as m where m.isim = isim') == None:
+ cursor.execute( "INSERT INTO musteriler (isim,soyisim,icecek_isim) values ('" + isim + "','" + soyisim + "', '" + icecek_isim + "')")
+ print("hoşgeldiniz")
+
+else:
+ print("Sistemde zaten kayıtlısınız!")
+
+cursor.execute('SELECT * FROM musteriler')
+row=cursor.fetchall()
+for i in row:
+    print(i)
+conn.commit()
+conn.close()
+
