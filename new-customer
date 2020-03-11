@@ -1,0 +1,12 @@
+import numpy as np
+import cv2
+video_capture = cv2.VideoCapture(0)
+
+while True:
+    # Tek bir video karesi yakalama:
+    ret, frame = video_capture.read()
+    cv2.imwrite('hello.png', frame)
+    if cv2.waitKey(30) & 0xFF == ord('q'):
+        break
+        
+#MUSTERİ KAYDETMEK İCİN ACİLAN EKRAN
